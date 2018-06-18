@@ -41,16 +41,27 @@ class BahrData(object):
             self.index = np.array(self._data['index'])
         if 'time' in keys:
             self.t = np.array(self._data['time'])
+        if 'time.s' in keys:
+            self.t = np.array(self._data['time.s'])
+
         if 'change in length' in keys:
             self.dl = np.array(self._data['change in length'])
+        
         if 'rel. change in length' in keys:
-            self.dll0 = np.array(self._data['rel. change in length'])
+            self.dll0 = 1e-2*np.array(self._data['rel. change in length'])
+        if 'dl.pct' in keys:
+            self.dll0 = 1e-2*np.array(self._data['dl.pct'])
         
         if self.l0:
-            self.dll0 = self.dl/self.l0
+            if len(self.dll0) == 0:
+                self.dll0 = self.dl/self.l0
+            elif len(self.dl) == 0:
+                self.dl = self.dll0*self.l0
 
         if 'temperature' in keys:
             self.T = np.array(self._data['temperature'])
+        if 'TC1' in keys:
+            self.T = np.array(self._data['TC1'])
         if 'sample temperature' in keys:
             self.T = np.array(self._data['sample temperature'])
         if 'nominal temperature' in keys:
@@ -74,6 +85,15 @@ class BahrData(object):
                 raise Exception('l0 not provided')
 
         return alpha
+
+    def split_segments(self):
+        if len(self.Tnom) > 0:
+            isiso = np.diff(self.Tnom) == 0
+            splitseg, = np.where(isiso[:-1] != isiso[1:])
+            splitseg += 1
+            dflist = np.split(self.data, splitseg)
+            return [BahrData(df, self.l0) for df in dflist]
+
 
 def load_asc_file(fname):
     """
