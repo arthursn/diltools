@@ -9,8 +9,7 @@ diltools runs in python >= 3.5 using the following non-standard python libraries
 - numpy
 - scipy
 - matplotlib
-- scipy
-- periodictable 
+- pandas
 
 First clone diltools repository:
 
