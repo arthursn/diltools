@@ -22,9 +22,9 @@ fig, ax1 = plt.subplots()
 ax1.plot(bd.T, bd.dll0, 'k-', label=r'$\Delta l / l0$')
 
 ax2 = ax1.twinx()
-ax2.plot(*smooth_derivative(bd.T, bd.dll0, 10), 'r-', label=r'$\frac{{d (\Delta l / l0)}}{{d T}}$')
+ax2.plot(*smooth_derivative(bd.T, bd.dll0, 10), ls='-', color='red', label=r'$\frac{{d (\Delta l / l0)}}{{d T}}$')
 
-ax1.set_xlabel('Temperature (°C)')
+ax1.set_xlabel(u'Temperature (°C)')
 ax1.set_ylabel(r'$\Delta l / l0$' + u' (%)')
 ax2.set_ylabel(r'$\frac{{d (\Delta l / l0)}}{{d T}}$' + u' (%/°C)')
 
