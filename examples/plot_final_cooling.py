@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
 
-import sys
-sys.path.append('/home/arthur/Dropbox/python')
-from diltools import *
-
 import glob
 import numpy as np
 import matplotlib.pyplot as plt
+from diltools import *
 
 def isint(s):
     try:

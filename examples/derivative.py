@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import sys
-sys.path.insert(1, "/home/arthur/Dropbox/python")
-
 import numpy as np
 import matplotlib.pyplot as plt
 from diltools import *
