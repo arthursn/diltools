@@ -7,7 +7,21 @@ from builtins import open
 
 class BahrData(object):
     """
-    l0 in the same units as dl (um)
+    BahrData class that parses the pandas dataframe loaded using the
+    load_asc_file function.
+
+    The instantiation operator receives one required and one optional argument:
+    data : pandas dataframe
+        Pandas dataframe loaded using load_asc_file containing the dilatometry
+        experiment data 
+    l0 : float, optional
+        The initial length of the sample in the same units as dl (normally um)
+
+    A common way of using the BahrData class is like:
+
+    >>> df = load_asc_file('path/to/asc/file.asc')
+    >>> bd = BahrData(df, l0=10e3)  # l0 = 10 mm = 10000 um
+
     """
 
     def __init__(self, data, l0=None):
@@ -33,10 +47,25 @@ class BahrData(object):
 
     @data.setter
     def data(self, data):
+        """
+        Once called, parse the data variable, so that the columns of the 
+        dataframe become variables in the instantiated object:
+
+        index                 -> index
+        time                  -> t
+        change in length      -> dl
+        rel. change in length -> dll0  # values are multiplied by 1e-2
+        dl.pct                -> dll0  # values are multiplied by 1e-2
+        temperature           -> T
+        TC1                   -> T
+        sample temperature    -> T
+        nominal temperature   -> Tnom
+        alpha                 -> alpha
+        """
         self._data = data
 
         keys = self._data.keys()
-        
+
         if 'index' in keys:
             self.index = np.array(self._data['index'])
         if 'time' in keys:
@@ -46,12 +75,12 @@ class BahrData(object):
 
         if 'change in length' in keys:
             self.dl = np.array(self._data['change in length'])
-        
+
         if 'rel. change in length' in keys:
             self.dll0 = 1e-2*np.array(self._data['rel. change in length'])
         if 'dl.pct' in keys:
             self.dll0 = 1e-2*np.array(self._data['dl.pct'])
-        
+
         if self.l0:
             if len(self.dll0) == 0:
                 self.dll0 = self.dl/self.l0
@@ -66,11 +95,14 @@ class BahrData(object):
             self.T = np.array(self._data['sample temperature'])
         if 'nominal temperature' in keys:
             self.Tnom = np.array(self._data['nominal temperature'])
-        
+
         if 'alpha' in keys:
             self.alpha = np.array(self._data['alpha'])
 
     def get_alpha(self, T0, T1, deg=2, **kwargs):
+        """
+        Calculated the linear expansion coefficient alpha
+        """
         sel = kwargs.get('sel', range(len(self.T)))
         l0 = kwargs.get('l0', self.l0)
 
@@ -80,19 +112,12 @@ class BahrData(object):
         else:
             if l0:
                 self.p = np.polyfit(self.T[sel], self.dl[sel], deg=deg)
-                alpha = (np.polyval(self.p, T1) - np.polyval(self.p, T0))/(l0*(T1 - T0))
+                alpha = (np.polyval(self.p, T1) -
+                         np.polyval(self.p, T0))/(l0*(T1 - T0))
             else:
                 raise Exception('l0 not provided')
 
         return alpha
-
-    def split_segments(self):
-        if len(self.Tnom) > 0:
-            isiso = np.diff(self.Tnom) == 0
-            splitseg, = np.where(isiso[:-1] != isiso[1:])
-            splitseg += 1
-            dflist = np.split(self.data, splitseg)
-            return [BahrData(df, self.l0) for df in dflist]
 
 
 def load_asc_file(fname):
@@ -139,6 +164,62 @@ def load_asc_file(fname):
                 pass
 
     return pd.DataFrame(data=data, columns=columns)
+
+
+def split_segments(bd):
+    """
+    Split BahrData according to isothermal, heating, and cooling segments
+    Does not differentiate non-isothermal segments with different
+    heating/cooling rates
+
+    Arguments
+    ---------
+    bd : BahrData object
+        BahrData object
+
+    Return
+    ------
+    bdlist : list
+        List of BahrData objects corresponding to each segment
+    """
+    if len(bd.Tnom) > 0:
+        isiso = np.diff(bd.Tnom) == 0
+        splitseg, = np.where(isiso[:-1] != isiso[1:])
+        splitseg += 1
+        dflist = np.split(bd.data, splitseg)
+        return [BahrData(df, bd.l0) for df in dflist]
+    else:
+        raise Exception('Nominal temperature (Tnom) not provided')
+
+
+def merge_segments(bdlist, l0=None):
+    """
+    Merge two or more BahrData segments into a single one
+
+    Arguments
+    ---------
+    bdlist : list
+        List of BahrData objects to be merged
+    l0 : float, optional
+        The initial length of the sample in the same units as dl 
+        (normally um). If not provided, l0 is inferred from the 
+        first item in bdlist (bdlist[0])
+
+    Return
+    ------
+    bd : BahrData object
+        BahrData object with merged segments
+    """
+
+    if l0 is None:
+        l0 = bdlist[0].l0
+
+    datalist = [bd.data for bd in bdlist]
+
+    mergeddata = pd.concat(datalist)
+
+    return BahrData(mergeddata, l0)
+
 
 def get_segments_by_temperature_range(bd, Trng):
     """
